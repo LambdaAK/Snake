@@ -12,7 +12,7 @@ from typing import List, Tuple, Optional
 from snake_game import SnakeGame
 
 class DQN(nn.Module):
-    def __init__(self, input_size: int = 14, hidden_size: int = 64, output_size: int = 4):
+    def __init__(self, input_size: int = 55, hidden_size: int = 64, output_size: int = 4):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.dropout1 = nn.Dropout(0.2)
@@ -42,7 +42,7 @@ class ExperienceReplay:
         return len(self.buffer)
 
 class DQNAgent:
-    def __init__(self, state_size: int = 14, action_size: int = 4, hidden_size: int = 64):
+    def __init__(self, state_size: int = 55, action_size: int = 4, hidden_size: int = 64):
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
@@ -51,10 +51,14 @@ class DQNAgent:
         self.learning_rate = 0.001
         self.gamma = 0.99
         self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.9995
+        self.epsilon_min = 0.0001  # Increased from 0.01 to 0.1
+        self.epsilon_decay = 0.9999  # Slower decay (was 0.9995)
         self.batch_size = 32
         self.target_update_freq = 100
+        
+        # Training stats
+        self.episode_count = 0
+        self.target_update_count = 0
         
         # Networks
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -67,10 +71,6 @@ class DQNAgent:
         
         # Experience replay
         self.memory = ExperienceReplay(10000)
-        
-        # Training stats
-        self.episode_count = 0
-        self.target_update_count = 0
         
         # Create agents directory
         os.makedirs("agents", exist_ok=True)
@@ -169,11 +169,12 @@ def train_dqn():
         episode = 0
         while True:  # Train indefinitely
             episode += 1
+            agent.episode_count = episode  # Update episode count for exploration boosts
             state = env.reset()
             total_reward = 0
             steps = 0
             
-            while steps < 500:  # Max steps per episode
+            while steps < 10000:  # Increased max steps per episode to 10,000
                 # Choose action
                 action = agent.act(state)
                 
