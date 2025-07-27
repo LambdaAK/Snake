@@ -11,6 +11,93 @@ from collections import deque
 from typing import List, Tuple, Optional
 from snake_game import SnakeGame
 
+# Terminal colors for pretty output
+class Colors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+    UNDERLINE = '\033[4m'
+
+def print_header():
+    """Print a pretty header for the training session"""
+    print(f"{Colors.CYAN}{Colors.BOLD}")
+    print("=" * 60)
+    print("🐍 SNAKE DQN TRAINING 🐍")
+    print("=" * 60)
+    print(f"{Colors.RESET}")
+
+def print_progress(episode: int, avg_reward: float, avg_score: float, avg_length: float, epsilon: float):
+    """Print training progress with colors"""
+    # Color code based on performance
+    if avg_reward > 0:
+        reward_color = Colors.GREEN
+    elif avg_reward > -100:
+        reward_color = Colors.YELLOW
+    else:
+        reward_color = Colors.RED
+    
+    if avg_score > 20:
+        score_color = Colors.GREEN
+    elif avg_score > 10:
+        score_color = Colors.YELLOW
+    else:
+        score_color = Colors.RED
+    
+    print(f"{Colors.BLUE}Episode {episode:6d}{Colors.RESET} | "
+          f"Avg Reward: {reward_color}{avg_reward:8.2f}{Colors.RESET} | "
+          f"Avg Score: {score_color}{avg_score:5.1f}{Colors.RESET} | "
+          f"Avg Length: {Colors.CYAN}{avg_length:5.1f}{Colors.RESET} | "
+          f"Epsilon: {Colors.MAGENTA}{epsilon:.3f}{Colors.RESET}")
+
+def print_save_message(episode: int):
+    """Print a colored save message"""
+    print(f"{Colors.GREEN}{Colors.BOLD}💾 Model saved at episode {episode}{Colors.RESET}")
+
+def print_final_stats(episode: int, episode_rewards: List[float], episode_scores: List[float]):
+    """Print final training statistics with colors"""
+    print(f"\n{Colors.CYAN}{Colors.BOLD}{'='*50}")
+    print("🎯 TRAINING SUMMARY")
+    print(f"{'='*50}{Colors.RESET}")
+    
+    print(f"{Colors.BLUE}Total Episodes:{Colors.RESET} {episode}")
+    
+    if episode_rewards:
+        final_avg_reward = np.mean(episode_rewards[-100:])
+        final_avg_score = np.mean(episode_scores[-100:])
+        best_score = max(episode_scores)
+        
+        # Color code the final stats
+        if final_avg_reward > 0:
+            reward_color = Colors.GREEN
+        elif final_avg_reward > -100:
+            reward_color = Colors.YELLOW
+        else:
+            reward_color = Colors.RED
+        
+        if final_avg_score > 20:
+            score_color = Colors.GREEN
+        elif final_avg_score > 10:
+            score_color = Colors.YELLOW
+        else:
+            score_color = Colors.RED
+        
+        if best_score > 30:
+            best_color = Colors.GREEN
+        elif best_score > 20:
+            best_color = Colors.YELLOW
+        else:
+            best_color = Colors.RED
+        
+        print(f"{Colors.BLUE}Final Average Reward (last 100):{Colors.RESET} {reward_color}{final_avg_reward:.2f}{Colors.RESET}")
+        print(f"{Colors.BLUE}Final Average Score (last 100):{Colors.RESET} {score_color}{final_avg_score:.2f}{Colors.RESET}")
+        print(f"{Colors.BLUE}Best Score Achieved:{Colors.RESET} {best_color}{best_score}{Colors.RESET}")
+
 class DQN(nn.Module):
     def __init__(self, input_size: int = 29, hidden_size: int = 128, output_size: int = 4):
         super(DQN, self).__init__()
@@ -145,13 +232,58 @@ class DQNAgent:
         }, f"agents/snake_dqn_episode_{episode}.pth")
     
     def load_model(self, filepath: str):
-        """Load a saved model"""
+        """Load a saved model with backward compatibility"""
         checkpoint = torch.load(filepath, map_location=self.device)
-        self.q_network.load_state_dict(checkpoint['model_state_dict'])
-        self.target_network.load_state_dict(checkpoint['target_model_state_dict'])
+        
+        # Check if the saved model has a different architecture
+        saved_state_dict = checkpoint['model_state_dict']
+        
+        # Detect the architecture of the saved model by checking layer shapes
+        fc2_weight_shape = saved_state_dict['fc2.weight'].shape
+        
+        if fc2_weight_shape[0] == 4:  # Old model: fc2 goes directly to output (4 actions)
+            # This is an old model with 2-layer architecture
+            print(f"{Colors.YELLOW}Loading old 2-layer model architecture...{Colors.RESET}")
+            
+            # Create a temporary 2-layer network to load the weights
+            class OldDQN(nn.Module):
+                def __init__(self, input_size: int = 29, hidden_size: int = 128, output_size: int = 4):
+                    super(OldDQN, self).__init__()
+                    self.fc1 = nn.Linear(input_size, hidden_size)
+                    self.fc2 = nn.Linear(hidden_size, output_size)
+                
+                def forward(self, x):
+                    x = F.relu(self.fc1(x))
+                    x = self.fc2(x)
+                    return x
+            
+            # Load into temporary network
+            temp_network = OldDQN(self.state_size, self.hidden_size, self.action_size).to(self.device)
+            temp_network.load_state_dict(saved_state_dict)
+            
+            # Copy weights to new network (fc1 and fc2)
+            self.q_network.fc1.load_state_dict(temp_network.fc1.state_dict())
+            self.q_network.fc2.load_state_dict(temp_network.fc2.state_dict())
+            
+            # Initialize fc3 and fc4 with default weights
+            print(f"{Colors.YELLOW}Initializing new layers with default weights...{Colors.RESET}")
+            
+            # Copy target network weights
+            self.target_network.fc1.load_state_dict(temp_network.fc1.state_dict())
+            self.target_network.fc2.load_state_dict(temp_network.fc2.state_dict())
+            
+        else:  # New model: fc2 goes to another hidden layer
+            # This is a new model with 4-layer architecture
+            print(f"{Colors.GREEN}Loading new 4-layer model architecture...{Colors.RESET}")
+            self.q_network.load_state_dict(saved_state_dict)
+            self.target_network.load_state_dict(checkpoint['target_model_state_dict'])
+        
+        # Load other parameters
         self.optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
         self.epsilon = checkpoint['epsilon']
         self.episode_count = checkpoint['episode_count']
+        
+        print(f"{Colors.GREEN}Model loaded successfully!{Colors.RESET}")
 
 def train_dqn():
     """Main training function"""
@@ -164,9 +296,10 @@ def train_dqn():
     episode_scores = []
     episode_lengths = []
     
-    print("Starting DQN training for Snake Game...")
-    print(f"Device: {agent.device}")
-    print("Press Ctrl+C to stop training")
+    print_header()
+    print(f"{Colors.YELLOW}Device: {agent.device}{Colors.RESET}")
+    print(f"{Colors.YELLOW}Press Ctrl+C to stop training{Colors.RESET}")
+    print()
     
     try:
         episode = 0
@@ -214,28 +347,21 @@ def train_dqn():
                 avg_reward = np.mean(episode_rewards[-100:])
                 avg_score = np.mean(episode_scores[-100:])
                 avg_length = np.mean(episode_lengths[-100:])
-                print(f"Episode {episode:6d} | Avg Reward: {avg_reward:6.2f} | "
-                      f"Avg Score: {avg_score:4.1f} | Avg Length: {avg_length:4.1f} | "
-                      f"Epsilon: {agent.epsilon:.3f}")
+                print_progress(episode, avg_reward, avg_score, avg_length, agent.epsilon)
             
-            # Save model every 1000 episodes
-            if episode % 1000 == 0:
+            # Save model every 100 episodes
+            if episode % 100 == 0:
                 agent.save_model(episode)
-                print(f"Model saved at episode {episode}")
+                print_save_message(episode)
     
     except KeyboardInterrupt:
-        print("\nTraining interrupted by user")
+        print(f"\n{Colors.YELLOW}Training interrupted by user{Colors.RESET}")
         # Save final model
         agent.save_model(episode)
-        print(f"Final model saved at episode {episode}")
+        print_save_message(episode)
         
         # Print final stats
-        if episode_rewards:
-            print(f"\nTraining Summary:")
-            print(f"Total Episodes: {episode}")
-            print(f"Final Average Reward (last 100): {np.mean(episode_rewards[-100:]):.2f}")
-            print(f"Final Average Score (last 100): {np.mean(episode_scores[-100:]):.2f}")
-            print(f"Best Score: {max(episode_scores)}")
+        print_final_stats(episode, episode_rewards, episode_scores)
 
 if __name__ == "__main__":
     train_dqn() 

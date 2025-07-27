@@ -1,124 +1,58 @@
-# Snake Game DQN Agent
+# Snake DQN
 
-A Deep Q-Network (DQN) implementation to train an AI agent to play the classic Snake game.
-
-## Features
-
-- **DQN Architecture**: 3-layer neural network with ReLU activations and dropout
-- **Enhanced State Representation**: 30-dimensional vector with comprehensive game state information
-- **Reward Function**: Balanced rewards for food proximity (+1), food consumption (+10), death penalty (-10), and survival bonus (+0.1)
-- **Experience Replay**: 10,000 experience buffer for stable training
-- **Target Network**: Updated every 100 episodes for training stability
-- **Automatic Saving**: Models saved every 1000 episodes
-- **Extended Episodes**: Up to 10,000 moves per episode for better learning
+A Deep Q-Network (DQN) AI for the classic Snake game using PyTorch.
 
 ## Installation
 
-1. Install dependencies:
 ```bash
 pip install -r requirements.txt
 ```
 
 ## Usage
 
-### Test the Implementation
-```bash
-python test_dqn.py
-```
-
-### Start Training
-```bash
-python dqn_agent.py
-```
-
-The training will run indefinitely and:
-- Print progress every 100 episodes
-- Save models every 1000 episodes in the `agents/` folder
-- Can be stopped with Ctrl+C
-
-### Run Trained Model
-```bash
-python run_trained_model.py
-```
-
-### Play the Original Game
+Play manually:
 ```bash
 python snake_game.py
 ```
 
-## Architecture
+Train the AI:
+```bash
+python dqn_agent.py
+```
 
-### Enhanced State Representation (30 entries)
-1. **Basic Information (10 entries)**
-   - Distance to food
-   - Unit vector toward food (dx, dy)
-   - Normalized snake length
-   - Snake direction (one-hot encoded, 4 entries)
-   - Normalized head coordinates (x, y)
+Test the AI:
+```bash
+python run_trained_model.py
+```
 
-2. **Enhanced Danger Detection (8 entries)**
-   - Immediate danger (4 directions)
-   - 2-step ahead danger (4 directions)
+## Implementation
 
-3. **Body Awareness (4 entries)**
-   - Body proximity in each direction (how close nearest body segment is)
+This project implements a Deep Q-Network (DQN) agent to play the classic Snake game, with several enhancements for improved learning and performance:
 
-4. **Food Direction (4 entries)**
-   - Food direction relative to current heading (one-hot encoded)
+- **Deep Q-Network Architecture:**  
+  The agent uses a neural network with four fully connected layers. The input layer receives a 29-dimensional state vector, followed by two hidden layers (each with 128 neurons and ReLU activations), a third hidden layer with 64 neurons, and an output layer with 4 neurons (corresponding to the four possible movement directions: up, down, left, right). This architecture allows the agent to learn complex strategies and spatial patterns in the game.
 
-5. **Space Analysis (4 entries)**
-   - Available free space in each direction
+- **State Representation (29 Dimensions):**  
+  The state vector encodes comprehensive information about the game environment, including:
+  - The snake's current direction (one-hot encoded)
+  - Relative position of the food to the snake's head
+  - Danger indicators for all four directions (e.g., if moving in a direction would result in collision with the wall or the snake's own body)
+  - Distances to the walls and to the snake's own body in each direction
+  - Information about available space and potential dead ends
+  This rich state representation enables the agent to make informed decisions and anticipate future risks.
 
-### DQN Network
-- Input: 30 neurons
-- Hidden 1: 64 neurons + ReLU + Dropout(0.2)
-- Hidden 2: 32 neurons + ReLU + Dropout(0.2)
-- Output: 4 neurons (one for each action)
+- **Reward Function with Spatial Awareness:**  
+  The reward function is carefully designed to encourage the agent to survive longer, seek food efficiently, and avoid self-trapping. It includes:
+  - Positive rewards for moving closer to the food and for eating food
+  - Small positive reward for each step survived (to encourage longer games)
+  - Penalties for moving away from the food, colliding with walls or the snake's own body, and entering dangerous or cramped spaces
+  - Additional spatial awareness: the agent is penalized for reducing its available escape routes or getting too close to its own body, and is rewarded for maintaining open space around the head
+  This balanced reward structure helps the agent learn not only to chase food but also to avoid common pitfalls like self-collision and dead ends.
 
-### Hyperparameters
-- Learning rate: 0.001
-- Discount factor: 0.99
-- Epsilon: 1.0 → 0.01 (decay: 0.9995)
-- Batch size: 32
-- Experience replay: 10,000
-- Max steps per episode: 10,000
+- **Experience Replay and Target Network:**  
+  The agent uses an experience replay buffer to store past experiences and samples random batches for training, which stabilizes learning. A separate target network is updated periodically to further improve training stability.
 
-## Key Improvements
+- **Training and Testing Scripts:**  
+  The repository includes scripts for training the agent (`dqn_agent.py`), running a trained model (`run_trained_model.py`), and testing core components (`test_dqn.py`).
 
-### Enhanced State Representation
-- **2-step danger detection**: Agent can see dangers 2 moves ahead
-- **Body proximity awareness**: Knows how close its body segments are in each direction
-- **Space analysis**: Understands available free space in each direction
-- **Food direction encoding**: Clear indication of where food is relative to current heading
-
-### Extended Training
-- **10,000 move episodes**: Much longer episodes for better learning
-- **Comprehensive state information**: Agent has much better awareness of its environment
-
-## Files
-
-- `snake_game.py`: Enhanced Snake game with comprehensive state representation
-- `dqn_agent.py`: DQN implementation and training loop
-- `run_trained_model.py`: Interactive model runner with visualization
-- `test_dqn.py`: Test script to verify implementation
-- `requirements.txt`: Python dependencies
-- `agents/`: Directory where trained models are saved
-
-## Training Progress
-
-The training will display:
-- Episode number
-- Average reward (last 100 episodes)
-- Average score (last 100 episodes)
-- Average episode length (last 100 episodes)
-- Current epsilon value
-
-Models are automatically saved as `snake_dqn_episode_X.pth` where X is the episode number.
-
-## Expected Performance
-
-With the enhanced state representation, the agent should be able to:
-- Achieve much higher scores (potentially 50+ food items)
-- Better navigate complex scenarios with long snakes
-- Make more informed decisions about movement
-- Avoid getting trapped by its own body
+For more details on the architecture and algorithms, see the code and comments in the respective Python files.

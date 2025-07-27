@@ -425,26 +425,29 @@ class SnakeGame:
     def _render(self):
         self._clear_screen()
         
-        print("=" * (self.width + 2))
+        # Print colored header
+        print(f"{Colors.CYAN}{Colors.BOLD}{'=' * (self.width + 2)}{Colors.RESET}")
+        
         for row in range(self.height):
             print("|", end="")
             for col in range(self.width):
                 pos = (row, col)
                 if pos == self.snake[0]:
-                    print("O", end="")  # Snake head
+                    print(f"{Colors.GREEN}O{Colors.RESET}", end="")  # Snake head in green
                 elif pos in self.snake[1:]:
-                    print("o", end="")  # Snake body
+                    print(f"{Colors.YELLOW}o{Colors.RESET}", end="")  # Snake body in yellow
                 elif pos == self.food:
-                    print("*", end="")  # Food
+                    print(f"{Colors.RED}*{Colors.RESET}", end="")  # Food in red
                 else:
                     print(" ", end="")
             print("|")
-        print("=" * (self.width + 2))
-        print(f"Score: {self.score}")
-        print("Controls: W=Up, A=Left, S=Down, D=Right, Q=Quit")
+        
+        print(f"{Colors.CYAN}{Colors.BOLD}{'=' * (self.width + 2)}{Colors.RESET}")
+        print(f"{Colors.BLUE}Score: {Colors.BOLD}{self.score}{Colors.RESET}")
+        print(f"{Colors.MAGENTA}Controls: W=Up, A=Left, S=Down, D=Right, Q=Quit{Colors.RESET}")
         
         if self.game_over:
-            print("\nGAME OVER! Press any key to exit...")
+            print(f"\n{Colors.RED}{Colors.BOLD}GAME OVER! Press any key to exit...{Colors.RESET}")
     
     def _get_key(self) -> str:
         try:
@@ -503,9 +506,13 @@ class SnakeGame:
         return True
     
     def play(self):
-        print("Welcome to Snake Game!")
-        print("Use WASD to control the snake, Q to quit")
-        print("Press any key to start...")
+        print(f"{Colors.CYAN}{Colors.BOLD}")
+        print("=" * 50)
+        print("🐍 WELCOME TO SNAKE GAME! 🐍")
+        print("=" * 50)
+        print(f"{Colors.RESET}")
+        print(f"{Colors.YELLOW}Use WASD to control the snake, Q to quit{Colors.RESET}")
+        print(f"{Colors.MAGENTA}Press any key to start...{Colors.RESET}")
         self._get_key()
         
         while True:
@@ -734,9 +741,10 @@ def main():
     try:
         game.play()
     except KeyboardInterrupt:
-        print("\nGame interrupted. Goodbye!")
+        print(f"\n{Colors.YELLOW}Game interrupted. Goodbye! 👋{Colors.RESET}")
     except Exception as e:
-        print(f"An error occurred: {e}")
+        print(f"{Colors.RED}An error occurred: {e}{Colors.RESET}")
+        print(f"{Colors.YELLOW}Please try again.{Colors.RESET}")
 
 if __name__ == "__main__":
     main()

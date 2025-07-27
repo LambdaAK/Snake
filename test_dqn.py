@@ -4,73 +4,102 @@ import numpy as np
 from snake_game import SnakeGame
 from dqn_agent import DQNAgent
 
+# Terminal colors for pretty output
+class Colors:
+    RED = '\033[91m'
+    GREEN = '\033[92m'
+    YELLOW = '\033[93m'
+    BLUE = '\033[94m'
+    MAGENTA = '\033[95m'
+    CYAN = '\033[96m'
+    WHITE = '\033[97m'
+    BOLD = '\033[1m'
+    RESET = '\033[0m'
+    UNDERLINE = '\033[4m'
+
+def print_test_header():
+    """Print a pretty header for the test session"""
+    print(f"{Colors.CYAN}{Colors.BOLD}")
+    print("=" * 50)
+    print("🧪 DQN IMPLEMENTATION TESTS 🧪")
+    print("=" * 50)
+    print(f"{Colors.RESET}")
+
+def print_success(message: str):
+    """Print a success message in green"""
+    print(f"{Colors.GREEN}✓ {message}{Colors.RESET}")
+
+def print_info(message: str):
+    """Print an info message in blue"""
+    print(f"{Colors.BLUE}ℹ {message}{Colors.RESET}")
+
 def test_state_representation():
     """Test that state representation works correctly"""
-    print("Testing state representation...")
+    print(f"{Colors.YELLOW}Testing state representation...{Colors.RESET}")
     game = SnakeGame(width=10, height=10)
     state = game.get_state()
     
-    print(f"State shape: {state.shape}")
-    print(f"State values: {state}")
-    print(f"State sum: {np.sum(state)}")
+    print(f"State shape: {Colors.CYAN}{state.shape}{Colors.RESET}")
+    print(f"State values: {Colors.MAGENTA}{state}{Colors.RESET}")
+    print(f"State sum: {Colors.CYAN}{np.sum(state)}{Colors.RESET}")
     
     assert state.shape == (29,), f"Expected state shape (29,), got {state.shape}"
-    print("✓ State representation test passed!")
+    print_success("State representation test passed!")
 
 def test_reward_function():
     """Test that reward function works correctly"""
-    print("\nTesting reward function...")
+    print(f"\n{Colors.YELLOW}Testing reward function...{Colors.RESET}")
     game = SnakeGame(width=10, height=10)
     
     # Test initial state
     initial_distance = abs(game.snake[0][0] - game.food[0]) + abs(game.snake[0][1] - game.food[1])
     reward = game._calculate_reward(initial_distance, False)
-    print(f"Initial reward: {reward}")
+    print(f"Initial reward: {Colors.CYAN}{reward}{Colors.RESET}")
     
     # Test food eaten
     reward = game._calculate_reward(initial_distance, True)
-    print(f"Food eaten reward: {reward}")
+    print(f"Food eaten reward: {Colors.GREEN}{reward}{Colors.RESET}")
     
     # Test death
     game.game_over = True
     reward = game._calculate_reward(initial_distance, False)
-    print(f"Death penalty: {reward}")
+    print(f"Death penalty: {Colors.RED}{reward}{Colors.RESET}")
     
-    print("✓ Reward function test passed!")
+    print_success("Reward function test passed!")
 
 def test_dqn_agent():
     """Test that DQN agent can be created and act"""
-    print("\nTesting DQN agent...")
+    print(f"\n{Colors.YELLOW}Testing DQN agent...{Colors.RESET}")
     agent = DQNAgent()
     
     # Test action selection
     state = np.random.rand(29).astype(np.float32)
     action = agent.act(state)
-    print(f"Selected action: {action}")
+    print(f"Selected action: {Colors.CYAN}{action}{Colors.RESET}")
     
     assert 0 <= action <= 3, f"Action should be 0-3, got {action}"
-    print("✓ DQN agent test passed!")
+    print_success("DQN agent test passed!")
 
 def test_game_step():
     """Test that game step function works with DQN"""
-    print("\nTesting game step function...")
+    print(f"\n{Colors.YELLOW}Testing game step function...{Colors.RESET}")
     game = SnakeGame(width=10, height=10)
     
     state = game.get_state()
     action = 0  # UP
     next_state, reward, done, info = game.step(action)
     
-    print(f"Action: {action}")
-    print(f"Reward: {reward}")
-    print(f"Done: {done}")
-    print(f"Info: {info}")
+    print(f"Action: {Colors.CYAN}{action}{Colors.RESET}")
+    print(f"Reward: {Colors.MAGENTA}{reward}{Colors.RESET}")
+    print(f"Done: {Colors.CYAN}{done}{Colors.RESET}")
+    print(f"Info: {Colors.BLUE}{info}{Colors.RESET}")
     
     assert next_state.shape == (29,), f"Expected next_state shape (29,), got {next_state.shape}"
-    print("✓ Game step test passed!")
+    print_success("Game step test passed!")
 
 def test_spatial_awareness():
     """Test the new spatial awareness features"""
-    print("\nTesting spatial awareness features...")
+    print(f"\n{Colors.YELLOW}Testing spatial awareness features...{Colors.RESET}")
     game = SnakeGame(width=10, height=10)
     
     # Test wall distances
@@ -79,7 +108,10 @@ def test_spatial_awareness():
     wall_dist_left = game._get_wall_distance('left')
     wall_dist_right = game._get_wall_distance('right')
     
-    print(f"Wall distances - up: {wall_dist_up:.2f}, down: {wall_dist_down:.2f}, left: {wall_dist_left:.2f}, right: {wall_dist_right:.2f}")
+    print(f"Wall distances - up: {Colors.CYAN}{wall_dist_up:.2f}{Colors.RESET}, "
+          f"down: {Colors.CYAN}{wall_dist_down:.2f}{Colors.RESET}, "
+          f"left: {Colors.CYAN}{wall_dist_left:.2f}{Colors.RESET}, "
+          f"right: {Colors.CYAN}{wall_dist_right:.2f}{Colors.RESET}")
     
     # Test body distances
     body_dist_up = game._get_body_distance('up')
@@ -87,11 +119,14 @@ def test_spatial_awareness():
     body_dist_left = game._get_body_distance('left')
     body_dist_right = game._get_body_distance('right')
     
-    print(f"Body distances - up: {body_dist_up:.2f}, down: {body_dist_down:.2f}, left: {body_dist_left:.2f}, right: {body_dist_right:.2f}")
+    print(f"Body distances - up: {Colors.MAGENTA}{body_dist_up:.2f}{Colors.RESET}, "
+          f"down: {Colors.MAGENTA}{body_dist_down:.2f}{Colors.RESET}, "
+          f"left: {Colors.MAGENTA}{body_dist_left:.2f}{Colors.RESET}, "
+          f"right: {Colors.MAGENTA}{body_dist_right:.2f}{Colors.RESET}")
     
     # Test safe moves count
     safe_moves = game._count_safe_moves()
-    print(f"Safe moves count: {safe_moves:.2f}")
+    print(f"Safe moves count: {Colors.GREEN}{safe_moves:.2f}{Colors.RESET}")
     
     # Test dead end detection
     dead_end_up = game._is_dead_end_in_direction('up')
@@ -99,12 +134,15 @@ def test_spatial_awareness():
     dead_end_left = game._is_dead_end_in_direction('left')
     dead_end_right = game._is_dead_end_in_direction('right')
     
-    print(f"Dead ends - up: {dead_end_up}, down: {dead_end_down}, left: {dead_end_left}, right: {dead_end_right}")
+    print(f"Dead ends - up: {Colors.RED if dead_end_up else Colors.GREEN}{dead_end_up}{Colors.RESET}, "
+          f"down: {Colors.RED if dead_end_down else Colors.GREEN}{dead_end_down}{Colors.RESET}, "
+          f"left: {Colors.RED if dead_end_left else Colors.GREEN}{dead_end_left}{Colors.RESET}, "
+          f"right: {Colors.RED if dead_end_right else Colors.GREEN}{dead_end_right}{Colors.RESET}")
     
-    print("✓ Spatial awareness test passed!")
+    print_success("Spatial awareness test passed!")
 
 if __name__ == "__main__":
-    print("Running DQN implementation tests...\n")
+    print_test_header()
     
     try:
         test_state_representation()
@@ -113,10 +151,10 @@ if __name__ == "__main__":
         test_game_step()
         test_spatial_awareness()
         
-        print("\n🎉 All tests passed! DQN implementation is ready for training.")
-        print("\nTo start training, run: python dqn_agent.py")
+        print(f"\n{Colors.GREEN}{Colors.BOLD}🎉 All tests passed! DQN implementation is ready for training.{Colors.RESET}")
+        print(f"\n{Colors.CYAN}To start training, run: {Colors.BOLD}python dqn_agent.py{Colors.RESET}")
         
     except Exception as e:
-        print(f"\n❌ Test failed: {e}")
+        print(f"\n{Colors.RED}❌ Test failed: {e}{Colors.RESET}")
         import traceback
         traceback.print_exc() 
