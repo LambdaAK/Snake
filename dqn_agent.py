@@ -12,24 +12,22 @@ from typing import List, Tuple, Optional
 from snake_game import SnakeGame
 
 class DQN(nn.Module):
-    def __init__(self, input_size: int = 55, hidden_size: int = 64, output_size: int = 4):
+    def __init__(self, input_size: int = 12, hidden_size: int = 128, output_size: int = 4):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
-        self.dropout1 = nn.Dropout(0.2)
-        self.fc2 = nn.Linear(hidden_size, hidden_size // 2)
-        self.dropout2 = nn.Dropout(0.2)
-        self.fc3 = nn.Linear(hidden_size // 2, output_size)
+        self.fc2 = nn.Linear(hidden_size, hidden_size)
+        self.fc3 = nn.Linear(hidden_size, hidden_size // 2)
+        self.fc4 = nn.Linear(hidden_size // 2, output_size)
     
     def forward(self, x):
         x = F.relu(self.fc1(x))
-        x = self.dropout1(x)
         x = F.relu(self.fc2(x))
-        x = self.dropout2(x)
-        x = self.fc3(x)
+        x = F.relu(self.fc3(x))
+        x = self.fc4(x)
         return x
 
 class ExperienceReplay:
-    def __init__(self, capacity: int = 10000):
+    def __init__(self, capacity: int = 50000):  # Increased buffer size
         self.buffer = deque(maxlen=capacity)
     
     def push(self, state, action, reward, next_state, done):
@@ -42,18 +40,18 @@ class ExperienceReplay:
         return len(self.buffer)
 
 class DQNAgent:
-    def __init__(self, state_size: int = 55, action_size: int = 4, hidden_size: int = 64):
+    def __init__(self, state_size: int = 12, action_size: int = 4, hidden_size: int = 128):
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
         
-        # Hyperparameters
-        self.learning_rate = 0.001
+        # Improved hyperparameters
+        self.learning_rate = 0.0005  # Lower learning rate for stability
         self.gamma = 0.99
         self.epsilon = 1.0
-        self.epsilon_min = 0.0001  # Increased from 0.01 to 0.1
-        self.epsilon_decay = 0.9999  # Slower decay (was 0.9995)
-        self.batch_size = 32
+        self.epsilon_min = 0.01
+        self.epsilon_decay = 0.9995  # Slower decay
+        self.batch_size = 64  # Larger batch size
         self.target_update_freq = 100
         
         # Training stats
@@ -70,7 +68,7 @@ class DQNAgent:
         self.optimizer = optim.Adam(self.q_network.parameters(), lr=self.learning_rate)
         
         # Experience replay
-        self.memory = ExperienceReplay(10000)
+        self.memory = ExperienceReplay(50000)  # Larger buffer
         
         # Create agents directory
         os.makedirs("agents", exist_ok=True)
@@ -90,7 +88,8 @@ class DQNAgent:
     
     def replay(self):
         """Train the network on a batch of experiences"""
-        if len(self.memory) < self.batch_size:
+        # Warmup period - don't train until we have enough diverse experiences
+        if len(self.memory) < 1000:
             return
         
         batch = self.memory.sample(self.batch_size)
@@ -117,6 +116,10 @@ class DQNAgent:
         loss = F.mse_loss(current_q_values.squeeze(), target_q_values)
         self.optimizer.zero_grad()
         loss.backward()
+        
+        # Gradient clipping for stability
+        torch.nn.utils.clip_grad_norm_(self.q_network.parameters(), max_norm=1.0)
+        
         self.optimizer.step()
         
         # Decay epsilon
@@ -195,9 +198,9 @@ def train_dqn():
                 if done:
                     break
             
-            # Update target network every 100 episodes
+            # Update target network every 500 episodes
             agent.target_update_count += 1
-            if agent.target_update_count >= 100:
+            if agent.target_update_count >= 500:
                 agent.update_target_network()
                 agent.target_update_count = 0
             

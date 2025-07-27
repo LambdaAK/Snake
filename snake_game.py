@@ -56,101 +56,44 @@ class SnakeGame:
         return self.get_state()
     
     def get_state(self) -> np.ndarray:
-        """Get the current state representation for DQN"""
+        """Get the current state representation for DQN - simplified but complete"""
         head = self.snake[0]
         food = self.food
         
-        # Calculate distance to food
-        distance_to_food = abs(head[0] - food[0]) + abs(head[1] - food[1])
+        # Current direction (one-hot encoded)
+        moving_up = 1.0 if self.direction == Direction.UP else 0.0
+        moving_down = 1.0 if self.direction == Direction.DOWN else 0.0
+        moving_left = 1.0 if self.direction == Direction.LEFT else 0.0
+        moving_right = 1.0 if self.direction == Direction.RIGHT else 0.0
         
-        # Calculate unit vector toward food
-        dx = food[1] - head[1]
-        dy = food[0] - head[0]
-        distance = max(1, distance_to_food)  # Avoid division by zero
-        unit_vector_dx = dx / distance
-        unit_vector_dy = dy / distance
-        
-        # Normalized snake length
-        normalized_snake_length = len(self.snake) / 10.0
-        
-        # Direction one-hot encoding
-        direction_up = 1.0 if self.direction == Direction.UP else 0.0
-        direction_down = 1.0 if self.direction == Direction.DOWN else 0.0
-        direction_left = 1.0 if self.direction == Direction.LEFT else 0.0
-        direction_right = 1.0 if self.direction == Direction.RIGHT else 0.0
-        
-        # Normalized head coordinates
-        normalized_head_x = head[1] / self.width
-        normalized_head_y = head[0] / self.height
-        
-        # Enhanced danger detection - check multiple steps ahead
-        danger_up = self._is_dangerous((head[0] - 1, head[1]))
-        danger_down = self._is_dangerous((head[0] + 1, head[1]))
-        danger_left = self._is_dangerous((head[0], head[1] - 1))
-        danger_right = self._is_dangerous((head[0], head[1] + 1))
-        
-        # Check 2 steps ahead for each direction
-        danger_up_2 = self._is_dangerous_2_steps((head[0] - 1, head[1]), (head[0] - 2, head[1]))
-        danger_down_2 = self._is_dangerous_2_steps((head[0] + 1, head[1]), (head[0] + 2, head[1]))
-        danger_left_2 = self._is_dangerous_2_steps((head[0], head[1] - 1), (head[0], head[1] - 2))
-        danger_right_2 = self._is_dangerous_2_steps((head[0], head[1] + 1), (head[0], head[1] + 2))
-        
-        # Body proximity - how close is the nearest body segment in each direction
-        body_proximity_up = self._get_body_proximity(head, 'up')
-        body_proximity_down = self._get_body_proximity(head, 'down')
-        body_proximity_left = self._get_body_proximity(head, 'left')
-        body_proximity_right = self._get_body_proximity(head, 'right')
+        # Danger detection based on current heading
+        danger_straight = self._is_dangerous_ahead()
+        danger_left = self._is_dangerous_left()
+        danger_right = self._is_dangerous_right()
         
         # Food direction relative to current heading
-        food_direction_up = 1.0 if food[0] < head[0] else 0.0
-        food_direction_down = 1.0 if food[0] > head[0] else 0.0
-        food_direction_left = 1.0 if food[1] < head[1] else 0.0
-        food_direction_right = 1.0 if food[1] > head[1] else 0.0
+        food_left = self._is_food_left()
+        food_right = self._is_food_right()
+        food_up = self._is_food_up()
+        food_down = self._is_food_down()
         
-        # Available space in each direction (how many free cells)
-        space_up = self._get_available_space(head, 'up')
-        space_down = self._get_available_space(head, 'down')
-        space_left = self._get_available_space(head, 'left')
-        space_right = self._get_available_space(head, 'right')
-        
-        # 5x5 grid centered on snake head
-        grid_5x5 = self._get_5x5_grid(head)
+        # Additional context
+        snake_length = len(self.snake) / 20.0  # Normalized length
         
         state = np.array([
-            distance_to_food,
-            unit_vector_dx,
-            unit_vector_dy,
-            normalized_snake_length,
-            direction_up,
-            direction_down,
-            direction_left,
-            direction_right,
-            normalized_head_x,
-            normalized_head_y,
-            danger_up,
-            danger_down,
+            danger_straight,
             danger_left,
             danger_right,
-            danger_up_2,
-            danger_down_2,
-            danger_left_2,
-            danger_right_2,
-            body_proximity_up,
-            body_proximity_down,
-            body_proximity_left,
-            body_proximity_right,
-            food_direction_up,
-            food_direction_down,
-            food_direction_left,
-            food_direction_right,
-            space_up,
-            space_down,
-            space_left,
-            space_right
+            moving_left,
+            moving_right,
+            moving_up,
+            moving_down,
+            food_left,
+            food_right,
+            food_up,
+            food_down,
+            snake_length
         ], dtype=np.float32)
-        
-        # Append the 5x5 grid to the state
-        state = np.concatenate([state, grid_5x5])
         
         return state
     
@@ -327,61 +270,37 @@ class SnakeGame:
         return new_state, reward, done, info
     
     def _calculate_reward(self, old_distance: int, food_eaten: bool) -> float:
-        """Calculate reward based on the enhanced reward function"""
+        """Calculate reward based on the improved reward function"""
         reward = 0.0
         
-        # Food proximity reward (more nuanced)
+        # Small negative reward every step to encourage faster food collection
+        reward -= 0.1
+        
+        # Food proximity reward (small positive for moving closer)
         new_distance = abs(self.snake[0][0] - self.food[0]) + abs(self.snake[0][1] - self.food[1])
         distance_change = old_distance - new_distance
         
         if distance_change > 0:
-            reward += 2.0  # Moving closer to food
+            reward += 0.5  # Small reward for moving closer to food
         elif distance_change < 0:
-            reward -= 1.0  # Moving away from food (penalty)
-        else:
-            reward += 0.1  # No change in distance (small positive)
+            reward -= 0.2  # Small penalty for moving away from food
         
         # Food consumption reward (main objective)
         if food_eaten:
-            reward += 15.0  # Increased from 10 to 15
+            reward += 10.0  # Large reward for eating food
         
         # Death penalty
         if self.game_over:
-            reward -= 15.0  # Increased from 10 to 15
-        
-        # Survival bonus
-        reward += 0.1
-        
-        # Efficiency bonus - reward for eating food quickly
-        if food_eaten and self.steps_since_last_food < 20:
-            reward += 5.0  # Bonus for eating food quickly
-        elif food_eaten and self.steps_since_last_food > 50:
-            reward -= 2.0  # Penalty for taking too long
-        
-        # Strategic rewards
-        head = self.snake[0]
-        
-        # Reward for maintaining open space
-        available_space = self._get_total_available_space(head)
-        if available_space > 10:
-            reward += 0.5  # Bonus for having lots of space
-        elif available_space < 5:
-            reward -= 0.5  # Penalty for being cramped
-        
-        # Reward for avoiding dead ends
-        if self._is_in_dead_end(head):
-            reward -= 1.0  # Penalty for being in a dead end
-        
-        # Progress milestone rewards
-        if food_eaten:
-            if len(self.snake) >= 10:
-                reward += 2.0  # Bonus for reaching 10 food items
-            if len(self.snake) >= 20:
-                reward += 3.0  # Bonus for reaching 20 food items
-            if len(self.snake) >= 30:
-                reward += 5.0  # Bonus for reaching 30 food items
+            reward -= 10.0  # Large penalty for dying
         
         return reward
+    
+    def _is_near_body(self, head: Tuple[int, int]) -> bool:
+        """Check if head is adjacent to any body segment"""
+        for body_segment in self.snake[1:]:  # Exclude head
+            if abs(head[0] - body_segment[0]) + abs(head[1] - body_segment[1]) == 1:
+                return True
+        return False
     
     def _get_total_available_space(self, head: Tuple[int, int]) -> int:
         """Get total available space around the head"""
@@ -502,6 +421,104 @@ class SnakeGame:
                 break
             
             self._move_snake()
+
+    def _is_dangerous_ahead(self) -> float:
+        """Check if moving straight ahead is dangerous"""
+        head = self.snake[0]
+        if self.direction == Direction.UP:
+            next_pos = (head[0] - 1, head[1])
+        elif self.direction == Direction.DOWN:
+            next_pos = (head[0] + 1, head[1])
+        elif self.direction == Direction.LEFT:
+            next_pos = (head[0], head[1] - 1)
+        else:  # RIGHT
+            next_pos = (head[0], head[1] + 1)
+        
+        return self._is_dangerous(next_pos)
+    
+    def _is_dangerous_left(self) -> float:
+        """Check if turning left is dangerous"""
+        head = self.snake[0]
+        if self.direction == Direction.UP:
+            next_pos = (head[0], head[1] - 1)
+        elif self.direction == Direction.DOWN:
+            next_pos = (head[0], head[1] + 1)
+        elif self.direction == Direction.LEFT:
+            next_pos = (head[0] + 1, head[1])
+        else:  # RIGHT
+            next_pos = (head[0] - 1, head[1])
+        
+        return self._is_dangerous(next_pos)
+    
+    def _is_dangerous_right(self) -> float:
+        """Check if turning right is dangerous"""
+        head = self.snake[0]
+        if self.direction == Direction.UP:
+            next_pos = (head[0], head[1] + 1)
+        elif self.direction == Direction.DOWN:
+            next_pos = (head[0], head[1] - 1)
+        elif self.direction == Direction.LEFT:
+            next_pos = (head[0] - 1, head[1])
+        else:  # RIGHT
+            next_pos = (head[0] + 1, head[1])
+        
+        return self._is_dangerous(next_pos)
+    
+    def _is_food_left(self) -> float:
+        """Check if food is to the left of current heading"""
+        head = self.snake[0]
+        food = self.food
+        
+        if self.direction == Direction.UP:
+            return 1.0 if food[1] < head[1] else 0.0
+        elif self.direction == Direction.DOWN:
+            return 1.0 if food[1] > head[1] else 0.0
+        elif self.direction == Direction.LEFT:
+            return 1.0 if food[0] > head[0] else 0.0
+        else:  # RIGHT
+            return 1.0 if food[0] < head[0] else 0.0
+    
+    def _is_food_right(self) -> float:
+        """Check if food is to the right of current heading"""
+        head = self.snake[0]
+        food = self.food
+        
+        if self.direction == Direction.UP:
+            return 1.0 if food[1] > head[1] else 0.0
+        elif self.direction == Direction.DOWN:
+            return 1.0 if food[1] < head[1] else 0.0
+        elif self.direction == Direction.LEFT:
+            return 1.0 if food[0] < head[0] else 0.0
+        else:  # RIGHT
+            return 1.0 if food[0] > head[0] else 0.0
+    
+    def _is_food_up(self) -> float:
+        """Check if food is ahead of current heading"""
+        head = self.snake[0]
+        food = self.food
+        
+        if self.direction == Direction.UP:
+            return 1.0 if food[0] < head[0] else 0.0
+        elif self.direction == Direction.DOWN:
+            return 1.0 if food[0] > head[0] else 0.0
+        elif self.direction == Direction.LEFT:
+            return 1.0 if food[1] < head[1] else 0.0
+        else:  # RIGHT
+            return 1.0 if food[1] > head[1] else 0.0
+    
+    def _is_food_down(self) -> float:
+        """Check if food is behind current heading"""
+        head = self.snake[0]
+        food = self.food
+        
+        if self.direction == Direction.UP:
+            return 1.0 if food[0] > head[0] else 0.0
+        elif self.direction == Direction.DOWN:
+            return 1.0 if food[0] < head[0] else 0.0
+        elif self.direction == Direction.LEFT:
+            return 1.0 if food[1] > head[1] else 0.0
+        else:  # RIGHT
+            return 1.0 if food[1] < head[1] else 0.0
 
 def main():
     game = SnakeGame()

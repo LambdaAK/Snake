@@ -14,7 +14,7 @@ def test_state_representation():
     print(f"State values: {state}")
     print(f"State sum: {np.sum(state)}")
     
-    assert state.shape == (55,), f"Expected state shape (55,), got {state.shape}"
+    assert state.shape == (12,), f"Expected state shape (12,), got {state.shape}"
     print("✓ State representation test passed!")
 
 def test_reward_function():
@@ -44,7 +44,7 @@ def test_dqn_agent():
     agent = DQNAgent()
     
     # Test action selection
-    state = np.random.rand(55).astype(np.float32)
+    state = np.random.rand(12).astype(np.float32)
     action = agent.act(state)
     print(f"Selected action: {action}")
     
@@ -65,28 +65,35 @@ def test_game_step():
     print(f"Done: {done}")
     print(f"Info: {info}")
     
-    assert next_state.shape == (55,), f"Expected next_state shape (55,), got {next_state.shape}"
+    assert next_state.shape == (12,), f"Expected next_state shape (12,), got {next_state.shape}"
     print("✓ Game step test passed!")
 
-def test_5x5_grid():
-    """Test the 5x5 grid representation"""
-    print("\nTesting 5x5 grid...")
+def test_danger_detection():
+    """Test the new danger detection methods"""
+    print("\nTesting danger detection...")
     game = SnakeGame(width=10, height=10)
     
-    # Get the 5x5 grid
-    grid = game._get_5x5_grid(game.snake[0])
+    # Test danger detection methods
+    danger_straight = game._is_dangerous_ahead()
+    danger_left = game._is_dangerous_left()
+    danger_right = game._is_dangerous_right()
     
-    print(f"Grid shape: {grid.shape}")
-    print(f"Grid values: {grid}")
+    print(f"Danger straight: {danger_straight}")
+    print(f"Danger left: {danger_left}")
+    print(f"Danger right: {danger_right}")
     
-    # The center should be the snake head (value 3.0)
-    assert grid[12] == 3.0, f"Center of grid should be snake head (3.0), got {grid[12]}"
+    # Test food direction methods
+    food_left = game._is_food_left()
+    food_right = game._is_food_right()
+    food_up = game._is_food_up()
+    food_down = game._is_food_down()
     
-    # Check if food is in the grid
-    food_in_grid = 4.0 in grid
-    print(f"Food in grid: {food_in_grid}")
+    print(f"Food left: {food_left}")
+    print(f"Food right: {food_right}")
+    print(f"Food up: {food_up}")
+    print(f"Food down: {food_down}")
     
-    print("✓ 5x5 grid test passed!")
+    print("✓ Danger detection test passed!")
 
 if __name__ == "__main__":
     print("Running DQN implementation tests...\n")
@@ -96,7 +103,7 @@ if __name__ == "__main__":
         test_reward_function()
         test_dqn_agent()
         test_game_step()
-        test_5x5_grid()
+        test_danger_detection()
         
         print("\n🎉 All tests passed! DQN implementation is ready for training.")
         print("\nTo start training, run: python dqn_agent.py")
