@@ -56,7 +56,7 @@ class SnakeGame:
         return self.get_state()
     
     def get_state(self) -> np.ndarray:
-        """Get the current state representation for DQN - simplified but complete"""
+        """Get the current state representation for DQN - enhanced with spatial awareness"""
         head = self.snake[0]
         food = self.food
         
@@ -77,6 +77,33 @@ class SnakeGame:
         food_up = self._is_food_up()
         food_down = self._is_food_down()
         
+        # Distance to walls in each direction
+        wall_distance_up = self._get_wall_distance('up')
+        wall_distance_down = self._get_wall_distance('down')
+        wall_distance_left = self._get_wall_distance('left')
+        wall_distance_right = self._get_wall_distance('right')
+        
+        # Distance to body segments in each direction
+        body_distance_up = self._get_body_distance('up')
+        body_distance_down = self._get_body_distance('down')
+        body_distance_left = self._get_body_distance('left')
+        body_distance_right = self._get_body_distance('right')
+        
+        # Safe moves count (how many directions don't immediately cause death)
+        safe_moves = self._count_safe_moves()
+        
+        # Lookahead: whether each possible move leads to a dead-end in 2-3 steps
+        dead_end_up = self._is_dead_end_in_direction('up')
+        dead_end_down = self._is_dead_end_in_direction('down')
+        dead_end_left = self._is_dead_end_in_direction('left')
+        dead_end_right = self._is_dead_end_in_direction('right')
+        
+        # Available space accessible from each direction
+        space_up = self._get_available_space(head, 'up')
+        space_down = self._get_available_space(head, 'down')
+        space_left = self._get_available_space(head, 'left')
+        space_right = self._get_available_space(head, 'right')
+        
         # Additional context
         snake_length = len(self.snake) / 20.0  # Normalized length
         
@@ -92,6 +119,23 @@ class SnakeGame:
             food_right,
             food_up,
             food_down,
+            wall_distance_up,
+            wall_distance_down,
+            wall_distance_left,
+            wall_distance_right,
+            body_distance_up,
+            body_distance_down,
+            body_distance_left,
+            body_distance_right,
+            safe_moves,
+            dead_end_up,
+            dead_end_down,
+            dead_end_left,
+            dead_end_right,
+            space_up,
+            space_down,
+            space_left,
+            space_right,
             snake_length
         ], dtype=np.float32)
         
@@ -270,11 +314,11 @@ class SnakeGame:
         return new_state, reward, done, info
     
     def _calculate_reward(self, old_distance: int, food_eaten: bool) -> float:
-        """Calculate reward based on the improved reward function"""
+        """Calculate reward based on the balanced reward function with spatial awareness"""
         reward = 0.0
         
-        # Small negative reward every step to encourage faster food collection
-        reward -= 0.1
+        # Small positive reward per step survived (encourages longer games)
+        reward += 0.1
         
         # Food proximity reward (small positive for moving closer)
         new_distance = abs(self.snake[0][0] - self.food[0]) + abs(self.snake[0][1] - self.food[1])
@@ -292,6 +336,61 @@ class SnakeGame:
         # Death penalty
         if self.game_over:
             reward -= 10.0  # Large penalty for dying
+        
+        # Spatial awareness penalties and rewards (reduced severity)
+        head = self.snake[0]
+        
+        # Penalty for dangerous situations (reduced escape routes) - less severe
+        safe_moves = self._count_safe_moves()
+        if safe_moves < 0.25:  # Only 1 safe move (very dangerous)
+            reward -= 1.0
+        elif safe_moves < 0.5:  # Less than 2 safe moves
+            reward -= 0.3
+        
+        # Penalty for getting too close to walls/body - less severe
+        min_body_distance = min(
+            self._get_body_distance('up'),
+            self._get_body_distance('down'),
+            self._get_body_distance('left'),
+            self._get_body_distance('right')
+        )
+        
+        if min_body_distance < 0.1:  # Very close to body
+            reward -= 0.5
+        elif min_body_distance < 0.3:  # Moderately close to body
+            reward -= 0.1
+        
+        # Penalty for moving into dead ends - less severe
+        dead_end_penalty = 0
+        if self._is_dead_end_in_direction('up'):
+            dead_end_penalty += 0.3
+        if self._is_dead_end_in_direction('down'):
+            dead_end_penalty += 0.3
+        if self._is_dead_end_in_direction('left'):
+            dead_end_penalty += 0.3
+        if self._is_dead_end_in_direction('right'):
+            dead_end_penalty += 0.3
+        
+        reward -= dead_end_penalty
+        
+        # Bonus for maintaining access to large open areas
+        total_available_space = (
+            self._get_available_space(head, 'up') +
+            self._get_available_space(head, 'down') +
+            self._get_available_space(head, 'left') +
+            self._get_available_space(head, 'right')
+        )
+        
+        if total_available_space > 3.0:  # Lots of open space
+            reward += 0.2
+        elif total_available_space < 0.5:  # Very cramped
+            reward -= 0.3
+        
+        # Reward for efficient paths to food (bonus for maintaining good distance from obstacles)
+        if not food_eaten and distance_change > 0:  # Moving closer to food
+            # Bonus if we're moving closer while maintaining good spatial awareness
+            if safe_moves > 0.5 and min_body_distance > 0.3:
+                reward += 0.1
         
         return reward
     
@@ -519,6 +618,116 @@ class SnakeGame:
             return 1.0 if food[1] > head[1] else 0.0
         else:  # RIGHT
             return 1.0 if food[1] < head[1] else 0.0
+
+    def _get_wall_distance(self, direction: str) -> float:
+        """Get distance to wall in a specific direction"""
+        head_row, head_col = self.snake[0]
+        
+        if direction == 'up':
+            return head_row / 10.0  # Normalize by max possible distance
+        elif direction == 'down':
+            return (self.height - 1 - head_row) / 10.0
+        elif direction == 'left':
+            return head_col / 10.0
+        else:  # right
+            return (self.width - 1 - head_col) / 10.0
+    
+    def _get_body_distance(self, direction: str) -> float:
+        """Get distance to nearest body segment in a specific direction"""
+        head_row, head_col = self.snake[0]
+        distance = 0
+        
+        if direction == 'up':
+            for row in range(head_row - 1, -1, -1):
+                if (row, head_col) in self.snake[1:]:  # Exclude head
+                    return distance / 10.0  # Normalize
+                distance += 1
+        elif direction == 'down':
+            for row in range(head_row + 1, self.height):
+                if (row, head_col) in self.snake[1:]:
+                    return distance / 10.0
+                distance += 1
+        elif direction == 'left':
+            for col in range(head_col - 1, -1, -1):
+                if (head_row, col) in self.snake[1:]:
+                    return distance / 10.0
+                distance += 1
+        else:  # right
+            for col in range(head_col + 1, self.width):
+                if (head_row, col) in self.snake[1:]:
+                    return distance / 10.0
+                distance += 1
+        
+        return 1.0  # No body found in this direction
+    
+    def _count_safe_moves(self) -> float:
+        """Count how many directions don't immediately cause death"""
+        safe_count = 0
+        
+        # Check each direction
+        for direction in ['up', 'down', 'left', 'right']:
+            if not self._is_immediate_death(direction):
+                safe_count += 1
+        
+        return safe_count / 4.0  # Normalize by total possible directions
+    
+    def _is_immediate_death(self, direction: str) -> bool:
+        """Check if moving in a direction causes immediate death"""
+        head_row, head_col = self.snake[0]
+        
+        if direction == 'up':
+            next_pos = (head_row - 1, head_col)
+        elif direction == 'down':
+            next_pos = (head_row + 1, head_col)
+        elif direction == 'left':
+            next_pos = (head_row, head_col - 1)
+        else:  # right
+            next_pos = (head_row, head_col + 1)
+        
+        # Check wall collision
+        if (next_pos[0] < 0 or next_pos[0] >= self.height or 
+            next_pos[1] < 0 or next_pos[1] >= self.width):
+            return True
+        
+        # Check body collision
+        if next_pos in self.snake:
+            return True
+        
+        return False
+    
+    def _is_dead_end_in_direction(self, direction: str) -> float:
+        """Check if a direction leads to a dead end (only one safe direction)"""
+        head_row, head_col = self.snake[0]
+        
+        # Calculate next position
+        if direction == 'up':
+            next_pos = (head_row - 1, head_col)
+        elif direction == 'down':
+            next_pos = (head_row + 1, head_col)
+        elif direction == 'left':
+            next_pos = (head_row, head_col - 1)
+        else:  # right
+            next_pos = (head_row, head_col + 1)
+        
+        # Check if first step is safe
+        if (next_pos[0] < 0 or next_pos[0] >= self.height or 
+            next_pos[1] < 0 or next_pos[1] >= self.width or
+            next_pos in self.snake):
+            return 1.0  # Immediate dead end
+        
+        # Count safe directions from this position
+        safe_directions = 0
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+            check_row = next_pos[0] + dr
+            check_col = next_pos[1] + dc
+            
+            if (check_row >= 0 and check_row < self.height and 
+                check_col >= 0 and check_col < self.width and
+                (check_row, check_col) not in self.snake):
+                safe_directions += 1
+        
+        # Dead end if only 0 or 1 safe directions
+        return 1.0 if safe_directions <= 1 else 0.0
 
 def main():
     game = SnakeGame()

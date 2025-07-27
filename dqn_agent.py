@@ -12,7 +12,7 @@ from typing import List, Tuple, Optional
 from snake_game import SnakeGame
 
 class DQN(nn.Module):
-    def __init__(self, input_size: int = 12, hidden_size: int = 128, output_size: int = 4):
+    def __init__(self, input_size: int = 29, hidden_size: int = 128, output_size: int = 4):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -40,7 +40,7 @@ class ExperienceReplay:
         return len(self.buffer)
 
 class DQNAgent:
-    def __init__(self, state_size: int = 12, action_size: int = 4, hidden_size: int = 128):
+    def __init__(self, state_size: int = 29, action_size: int = 4, hidden_size: int = 128):
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size

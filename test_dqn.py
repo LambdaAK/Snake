@@ -14,7 +14,7 @@ def test_state_representation():
     print(f"State values: {state}")
     print(f"State sum: {np.sum(state)}")
     
-    assert state.shape == (12,), f"Expected state shape (12,), got {state.shape}"
+    assert state.shape == (29,), f"Expected state shape (29,), got {state.shape}"
     print("✓ State representation test passed!")
 
 def test_reward_function():
@@ -44,7 +44,7 @@ def test_dqn_agent():
     agent = DQNAgent()
     
     # Test action selection
-    state = np.random.rand(12).astype(np.float32)
+    state = np.random.rand(29).astype(np.float32)
     action = agent.act(state)
     print(f"Selected action: {action}")
     
@@ -65,35 +65,43 @@ def test_game_step():
     print(f"Done: {done}")
     print(f"Info: {info}")
     
-    assert next_state.shape == (12,), f"Expected next_state shape (12,), got {next_state.shape}"
+    assert next_state.shape == (29,), f"Expected next_state shape (29,), got {next_state.shape}"
     print("✓ Game step test passed!")
 
-def test_danger_detection():
-    """Test the new danger detection methods"""
-    print("\nTesting danger detection...")
+def test_spatial_awareness():
+    """Test the new spatial awareness features"""
+    print("\nTesting spatial awareness features...")
     game = SnakeGame(width=10, height=10)
     
-    # Test danger detection methods
-    danger_straight = game._is_dangerous_ahead()
-    danger_left = game._is_dangerous_left()
-    danger_right = game._is_dangerous_right()
+    # Test wall distances
+    wall_dist_up = game._get_wall_distance('up')
+    wall_dist_down = game._get_wall_distance('down')
+    wall_dist_left = game._get_wall_distance('left')
+    wall_dist_right = game._get_wall_distance('right')
     
-    print(f"Danger straight: {danger_straight}")
-    print(f"Danger left: {danger_left}")
-    print(f"Danger right: {danger_right}")
+    print(f"Wall distances - up: {wall_dist_up:.2f}, down: {wall_dist_down:.2f}, left: {wall_dist_left:.2f}, right: {wall_dist_right:.2f}")
     
-    # Test food direction methods
-    food_left = game._is_food_left()
-    food_right = game._is_food_right()
-    food_up = game._is_food_up()
-    food_down = game._is_food_down()
+    # Test body distances
+    body_dist_up = game._get_body_distance('up')
+    body_dist_down = game._get_body_distance('down')
+    body_dist_left = game._get_body_distance('left')
+    body_dist_right = game._get_body_distance('right')
     
-    print(f"Food left: {food_left}")
-    print(f"Food right: {food_right}")
-    print(f"Food up: {food_up}")
-    print(f"Food down: {food_down}")
+    print(f"Body distances - up: {body_dist_up:.2f}, down: {body_dist_down:.2f}, left: {body_dist_left:.2f}, right: {body_dist_right:.2f}")
     
-    print("✓ Danger detection test passed!")
+    # Test safe moves count
+    safe_moves = game._count_safe_moves()
+    print(f"Safe moves count: {safe_moves:.2f}")
+    
+    # Test dead end detection
+    dead_end_up = game._is_dead_end_in_direction('up')
+    dead_end_down = game._is_dead_end_in_direction('down')
+    dead_end_left = game._is_dead_end_in_direction('left')
+    dead_end_right = game._is_dead_end_in_direction('right')
+    
+    print(f"Dead ends - up: {dead_end_up}, down: {dead_end_down}, left: {dead_end_left}, right: {dead_end_right}")
+    
+    print("✓ Spatial awareness test passed!")
 
 if __name__ == "__main__":
     print("Running DQN implementation tests...\n")
@@ -103,7 +111,7 @@ if __name__ == "__main__":
         test_reward_function()
         test_dqn_agent()
         test_game_step()
-        test_danger_detection()
+        test_spatial_awareness()
         
         print("\n🎉 All tests passed! DQN implementation is ready for training.")
         print("\nTo start training, run: python dqn_agent.py")
