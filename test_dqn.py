@@ -43,7 +43,7 @@ def test_state_representation():
     print(f"State values: {Colors.MAGENTA}{state}{Colors.RESET}")
     print(f"State sum: {Colors.CYAN}{np.sum(state)}{Colors.RESET}")
     
-    assert state.shape == (29,), f"Expected state shape (29,), got {state.shape}"
+    assert state.shape == (33,), f"Expected state shape (33,), got {state.shape}"
     print_success("State representation test passed!")
 
 def test_reward_function():
@@ -73,7 +73,7 @@ def test_dqn_agent():
     agent = DQNAgent()
     
     # Test action selection
-    state = np.random.rand(29).astype(np.float32)
+    state = np.random.rand(33).astype(np.float32)
     action = agent.act(state)
     print(f"Selected action: {Colors.CYAN}{action}{Colors.RESET}")
     
@@ -94,7 +94,7 @@ def test_game_step():
     print(f"Done: {Colors.CYAN}{done}{Colors.RESET}")
     print(f"Info: {Colors.BLUE}{info}{Colors.RESET}")
     
-    assert next_state.shape == (29,), f"Expected next_state shape (29,), got {next_state.shape}"
+    assert next_state.shape == (33,), f"Expected next_state shape (33,), got {next_state.shape}"
     print_success("Game step test passed!")
 
 def test_spatial_awareness():
@@ -141,6 +141,38 @@ def test_spatial_awareness():
     
     print_success("Spatial awareness test passed!")
 
+def test_pathfinding():
+    """Test the new pathfinding features"""
+    print(f"\n{Colors.YELLOW}Testing pathfinding features...{Colors.RESET}")
+    game = SnakeGame(width=10, height=10)
+    
+    # Test A* pathfinding
+    start = game.snake[0]
+    goal = game.food
+    path = game._a_star_pathfinding(start, goal)
+    
+    print(f"Path found: {Colors.CYAN}{path is not None}{Colors.RESET}")
+    if path:
+        print(f"Path length: {Colors.MAGENTA}{len(path)}{Colors.RESET}")
+        print(f"Path: {Colors.BLUE}{path[:5]}...{Colors.RESET}")  # Show first 5 positions
+    
+    # Test path quality for each direction
+    path_quality_up = game._get_path_quality('up')
+    path_quality_down = game._get_path_quality('down')
+    path_quality_left = game._get_path_quality('left')
+    path_quality_right = game._get_path_quality('right')
+    
+    print(f"Path quality - up: {Colors.CYAN}{path_quality_up:.2f}{Colors.RESET}, "
+          f"down: {Colors.CYAN}{path_quality_down:.2f}{Colors.RESET}, "
+          f"left: {Colors.CYAN}{path_quality_left:.2f}{Colors.RESET}, "
+          f"right: {Colors.CYAN}{path_quality_right:.2f}{Colors.RESET}")
+    
+    # Test path reward calculation
+    path_reward = game._calculate_path_reward()
+    print(f"Path reward: {Colors.GREEN}{path_reward:.2f}{Colors.RESET}")
+    
+    print_success("Pathfinding test passed!")
+
 if __name__ == "__main__":
     print_test_header()
     
@@ -150,6 +182,7 @@ if __name__ == "__main__":
         test_dqn_agent()
         test_game_step()
         test_spatial_awareness()
+        test_pathfinding()
         
         print(f"\n{Colors.GREEN}{Colors.BOLD}🎉 All tests passed! DQN implementation is ready for training.{Colors.RESET}")
         print(f"\n{Colors.CYAN}To start training, run: {Colors.BOLD}python dqn_agent.py{Colors.RESET}")

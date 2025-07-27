@@ -32,6 +32,7 @@ class SnakeGame:
         self.height = height
         self.snake: List[Tuple[int, int]] = [(height // 2, width // 2)]
         self.direction = Direction.RIGHT
+        self.previous_direction = Direction.RIGHT  # Track previous direction for change detection
         self.food: Optional[Tuple[int, int]] = None
         self.score = 0
         self.game_over = False
@@ -49,6 +50,7 @@ class SnakeGame:
         """Reset the game for a new episode"""
         self.snake = [(self.height // 2, self.width // 2)]
         self.direction = Direction.RIGHT
+        self.previous_direction = Direction.RIGHT  # Reset previous direction
         self.score = 0
         self.game_over = False
         self.steps_since_last_food = 0
@@ -104,6 +106,12 @@ class SnakeGame:
         space_left = self._get_available_space(head, 'left')
         space_right = self._get_available_space(head, 'right')
         
+        # Pathfinding-based quality scores for each direction
+        path_quality_up = self._get_path_quality('up')
+        path_quality_down = self._get_path_quality('down')
+        path_quality_left = self._get_path_quality('left')
+        path_quality_right = self._get_path_quality('right')
+        
         # Additional context
         snake_length = len(self.snake) / 20.0  # Normalized length
         
@@ -136,6 +144,10 @@ class SnakeGame:
             space_down,
             space_left,
             space_right,
+            path_quality_up,
+            path_quality_down,
+            path_quality_left,
+            path_quality_right,
             snake_length
         ], dtype=np.float32)
         
@@ -262,6 +274,9 @@ class SnakeGame:
         old_distance = abs(self.snake[0][0] - self.food[0]) + abs(self.snake[0][1] - self.food[1])
         food_eaten = False
         
+        # Store previous direction for change detection
+        self.previous_direction = self.direction
+        
         # Convert action to direction
         if action == 0 and self.direction != Direction.DOWN:  # UP
             self.direction = Direction.UP
@@ -320,6 +335,10 @@ class SnakeGame:
         # Small positive reward per step survived (encourages longer games)
         reward += 0.1
         
+        # Direction change penalty (encourages straighter paths and reduces erratic movement)
+        if self.direction != self.previous_direction:
+            reward -= 0.2  # Penalty for changing direction
+        
         # Food proximity reward (small positive for moving closer)
         new_distance = abs(self.snake[0][0] - self.food[0]) + abs(self.snake[0][1] - self.food[1])
         distance_change = old_distance - new_distance
@@ -336,6 +355,10 @@ class SnakeGame:
         # Death penalty
         if self.game_over:
             reward -= 10.0  # Large penalty for dying
+        
+        # Pathfinding-based rewards (new feature)
+        path_reward = self._calculate_path_reward()
+        reward += path_reward
         
         # Spatial awareness penalties and rewards (reduced severity)
         head = self.snake[0]
@@ -735,6 +758,226 @@ class SnakeGame:
         
         # Dead end if only 0 or 1 safe directions
         return 1.0 if safe_directions <= 1 else 0.0
+
+    def _get_lookahead_space(self) -> float:
+        """Get available space 2 steps ahead in the current direction"""
+        head_row, head_col = self.snake[0]
+        
+        # Calculate position 2 steps ahead
+        if self.direction == Direction.UP:
+            lookahead_pos = (head_row - 2, head_col)
+        elif self.direction == Direction.DOWN:
+            lookahead_pos = (head_row + 2, head_col)
+        elif self.direction == Direction.LEFT:
+            lookahead_pos = (head_row, head_col - 2)
+        else:  # RIGHT
+            lookahead_pos = (head_row, head_col + 2)
+        
+        # Check if lookahead position is valid
+        if (lookahead_pos[0] < 0 or lookahead_pos[0] >= self.height or 
+            lookahead_pos[1] < 0 or lookahead_pos[1] >= self.width or
+            lookahead_pos in self.snake):
+            return 0.0  # No space if position is invalid
+        
+        # Calculate available space from lookahead position
+        total_space = 0
+        for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:  # All directions
+            check_row = lookahead_pos[0] + dr
+            check_col = lookahead_pos[1] + dc
+            
+            # Count consecutive free cells in this direction
+            space_count = 0
+            for step in range(1, 5):  # Check up to 4 steps
+                test_row = lookahead_pos[0] + dr * step
+                test_col = lookahead_pos[1] + dc * step
+                
+                if (test_row >= 0 and test_row < self.height and 
+                    test_col >= 0 and test_col < self.width and
+                    (test_row, test_col) not in self.snake):
+                    space_count += 1
+                else:
+                    break
+            
+            total_space += space_count
+        
+        return total_space / 16.0  # Normalize by max possible space (4 directions * 4 steps)
+    
+    def _a_star_pathfinding(self, start: Tuple[int, int], goal: Tuple[int, int]) -> Optional[List[Tuple[int, int]]]:
+        """A* pathfinding algorithm to find optimal path to goal"""
+        if start == goal:
+            return [start]
+        
+        # Priority queue for open set (f_score, position)
+        open_set = [(0, start)]
+        came_from = {}
+        
+        # Cost from start to current node
+        g_score = {start: 0}
+        # Estimated total cost from start to goal through current node
+        f_score = {start: self._heuristic(start, goal)}
+        
+        while open_set:
+            current_f, current = open_set.pop(0)
+            
+            if current == goal:
+                return self._reconstruct_path(came_from, current)
+            
+            # Check all neighbors
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                neighbor = (current[0] + dr, current[1] + dc)
+                
+                # Check if neighbor is valid
+                if (neighbor[0] < 0 or neighbor[0] >= self.height or 
+                    neighbor[1] < 0 or neighbor[1] >= self.width or
+                    neighbor in self.snake):
+                    continue
+                
+                # Calculate tentative g_score
+                tentative_g_score = g_score[current] + 1
+                
+                if neighbor not in g_score or tentative_g_score < g_score[neighbor]:
+                    # This path is better
+                    came_from[neighbor] = current
+                    g_score[neighbor] = tentative_g_score
+                    f_score[neighbor] = tentative_g_score + self._heuristic(neighbor, goal)
+                    
+                    # Add to open set if not already there
+                    if neighbor not in [pos for _, pos in open_set]:
+                        open_set.append((f_score[neighbor], neighbor))
+            
+            # Sort open set by f_score
+            open_set.sort()
+        
+        return None  # No path found
+    
+    def _heuristic(self, pos: Tuple[int, int], goal: Tuple[int, int]) -> float:
+        """Manhattan distance heuristic for A*"""
+        return abs(pos[0] - goal[0]) + abs(pos[1] - goal[1])
+    
+    def _reconstruct_path(self, came_from: Dict[Tuple[int, int], Tuple[int, int]], current: Tuple[int, int]) -> List[Tuple[int, int]]:
+        """Reconstruct path from A* results"""
+        path = [current]
+        while current in came_from:
+            current = came_from[current]
+            path.append(current)
+        path.reverse()
+        return path
+    
+    def _get_path_quality(self, direction: str) -> float:
+        """Get quality score for a direction based on pathfinding analysis"""
+        head = self.snake[0]
+        
+        # Calculate next position in the given direction
+        if direction == 'up':
+            next_pos = (head[0] - 1, head[1])
+        elif direction == 'down':
+            next_pos = (head[0] + 1, head[1])
+        elif direction == 'left':
+            next_pos = (head[0], head[1] - 1)
+        else:  # right
+            next_pos = (head[0], head[1] + 1)
+        
+        # Check if next position is valid
+        if (next_pos[0] < 0 or next_pos[0] >= self.height or 
+            next_pos[1] < 0 or next_pos[1] >= self.width or
+            next_pos in self.snake):
+            return 0.0  # Invalid move
+        
+        # Find path to food from next position
+        path_to_food = self._a_star_pathfinding(next_pos, self.food)
+        
+        if path_to_food is None:
+            return 0.0  # No path to food
+        
+        # Calculate path quality based on:
+        # 1. Path length (shorter is better)
+        # 2. Available space along the path
+        # 3. Distance from walls
+        
+        path_length = len(path_to_food)
+        max_path_length = self.width + self.height  # Theoretical maximum
+        
+        # Normalize path length (shorter is better)
+        length_score = 1.0 - (path_length / max_path_length)
+        
+        # Calculate space along the path
+        space_score = 0.0
+        for pos in path_to_food[:min(5, len(path_to_food))]:  # Check first 5 positions
+            # Count free cells around this position
+            free_cells = 0
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                check_pos = (pos[0] + dr, pos[1] + dc)
+                if (check_pos[0] >= 0 and check_pos[0] < self.height and 
+                    check_pos[1] >= 0 and check_pos[1] < self.width and
+                    check_pos not in self.snake):
+                    free_cells += 1
+            space_score += free_cells / 4.0  # Normalize by max possible free cells
+        
+        space_score /= min(5, len(path_to_food))  # Average space score
+        
+        # Calculate wall distance score
+        wall_distance = min(
+            next_pos[0],  # Distance to top wall
+            self.height - 1 - next_pos[0],  # Distance to bottom wall
+            next_pos[1],  # Distance to left wall
+            self.width - 1 - next_pos[1]  # Distance to right wall
+        )
+        wall_score = wall_distance / max(self.width, self.height)
+        
+        # Combine scores (weighted average)
+        quality_score = (length_score * 0.4 + space_score * 0.4 + wall_score * 0.2)
+        
+        return quality_score
+
+    def _calculate_path_reward(self) -> float:
+        """Calculate a reward based on the quality of the current path to food."""
+        head = self.snake[0]
+        
+        # Find the current path to food
+        path_to_food = self._a_star_pathfinding(head, self.food)
+        
+        if path_to_food is None:
+            return -1.0  # Large penalty if no path to food
+        
+        # Calculate path quality based on:
+        # 1. Path length (shorter is better)
+        # 2. Available space along the path
+        # 3. Distance from walls
+        
+        path_length = len(path_to_food)
+        max_path_length = self.width + self.height  # Theoretical maximum
+        
+        # Normalize path length (shorter is better)
+        length_score = 1.0 - (path_length / max_path_length)
+        
+        # Calculate space along the path
+        space_score = 0.0
+        for pos in path_to_food[:min(5, len(path_to_food))]:  # Check first 5 positions
+            # Count free cells around this position
+            free_cells = 0
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                check_pos = (pos[0] + dr, pos[1] + dc)
+                if (check_pos[0] >= 0 and check_pos[0] < self.height and 
+                    check_pos[1] >= 0 and check_pos[1] < self.width and
+                    check_pos not in self.snake):
+                    free_cells += 1
+            space_score += free_cells / 4.0  # Normalize by max possible free cells
+        
+        space_score /= min(5, len(path_to_food))  # Average space score
+        
+        # Calculate wall distance score
+        wall_distance = min(
+            head[0],  # Distance to top wall
+            self.height - 1 - head[0],  # Distance to bottom wall
+            head[1],  # Distance to left wall
+            self.width - 1 - head[1]  # Distance to right wall
+        )
+        wall_score = wall_distance / max(self.width, self.height)
+        
+        # Combine scores (weighted average)
+        quality_score = (length_score * 0.4 + space_score * 0.4 + wall_score * 0.2)
+        
+        return quality_score
 
 def main():
     game = SnakeGame()

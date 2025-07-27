@@ -99,7 +99,7 @@ def print_final_stats(episode: int, episode_rewards: List[float], episode_scores
         print(f"{Colors.BLUE}Best Score Achieved:{Colors.RESET} {best_color}{best_score}{Colors.RESET}")
 
 class DQN(nn.Module):
-    def __init__(self, input_size: int = 29, hidden_size: int = 128, output_size: int = 4):
+    def __init__(self, input_size: int = 33, hidden_size: int = 128, output_size: int = 4):
         super(DQN, self).__init__()
         self.fc1 = nn.Linear(input_size, hidden_size)
         self.fc2 = nn.Linear(hidden_size, hidden_size)
@@ -127,7 +127,7 @@ class ExperienceReplay:
         return len(self.buffer)
 
 class DQNAgent:
-    def __init__(self, state_size: int = 29, action_size: int = 4, hidden_size: int = 128):
+    def __init__(self, state_size: int = 33, action_size: int = 4, hidden_size: int = 128):
         self.state_size = state_size
         self.action_size = action_size
         self.hidden_size = hidden_size
@@ -136,8 +136,8 @@ class DQNAgent:
         self.learning_rate = 0.0005  # Lower learning rate for stability
         self.gamma = 0.99
         self.epsilon = 1.0
-        self.epsilon_min = 0.01
-        self.epsilon_decay = 0.9995  # Slower decay
+        self.epsilon_min = 0.0001
+        self.epsilon_decay = 0.99995  # Slower decay
         self.batch_size = 64  # Larger batch size
         self.target_update_freq = 100
         
