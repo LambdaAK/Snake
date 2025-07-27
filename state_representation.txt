@@ -1,0 +1,19 @@
+state_vector = [
+    # Basic information (10 entries)
+    distance_to_food,           # 1 entry
+    unit_vector_dx,            # 1 entry  
+    unit_vector_dy,            # 1 entry
+    normalized_snake_length,   # 1 entry
+    direction_up,              # 1 entry (one-hot)
+    direction_down,            # 1 entry (one-hot)
+    direction_left,            # 1 entry (one-hot)
+    direction_right,           # 1 entry (one-hot)
+    normalized_head_x,         # 1 entry
+    normalized_head_y,         # 1 entry
+    
+    # Simple danger (4 entries)
+    danger_up,                 # 1 entry (1 if wall/body 1 step away, 0 otherwise)
+    danger_down,               # 1 entry
+    danger_left,               # 1 entry
+    danger_right,              # 1 entry
+]

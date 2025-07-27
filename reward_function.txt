@@ -1,0 +1,7 @@
+Reward = Food_Proximity_Reward + Food_Consumption_Reward + Death_Penalty + Survival_Bonus
+
+Where:
+- Food_Proximity_Reward = +1 if distance_to_food_decreased, else 0
+- Food_Consumption_Reward = +10 if food_eaten, else 0  
+- Death_Penalty = -10 if game_over, else 0
+- Survival_Bonus = +0.1 for every valid move
