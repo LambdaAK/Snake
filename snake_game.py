@@ -27,7 +27,7 @@ class Direction(Enum):
     RIGHT = (0, 1)
 
 class SnakeGame:
-    def __init__(self, width: int = 20, height: int = 15):
+    def __init__(self, width: int = 30, height: int = 30):
         self.width = width
         self.height = height
         self.snake: List[Tuple[int, int]] = [(height // 2, width // 2)]

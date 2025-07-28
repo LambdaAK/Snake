@@ -288,7 +288,7 @@ class DQNAgent:
 def train_dqn():
     """Main training function"""
     # Initialize environment and agent
-    env = SnakeGame(width=20, height=15)
+    env = SnakeGame()
     agent = DQNAgent()
     
     # Training variables

@@ -130,7 +130,7 @@ def run_model(model_path: str, run_mode: str, episodes: int, delay: float):
     print(f"\n{Colors.CYAN}Loading model: {Colors.BOLD}{model_path}{Colors.RESET}")
     
     # Initialize environment and agent
-    env = SnakeGame(width=20, height=15)
+    env = SnakeGame()
     agent = DQNAgent()
     
     # Load the model
