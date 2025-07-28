@@ -358,9 +358,22 @@ class SnakeGame:
         elif distance_change < 0:
             reward -= 0.2  # Small penalty for moving away from food
         
-        # Food consumption reward (main objective)
+        # Food consumption reward (main objective) with efficiency bonus
         if food_eaten:
-            reward += 10.0  # Large reward for eating food
+            # Base reward for eating food
+            reward += 10.0
+            
+            # Efficiency bonus - reward for quick food collection
+            efficiency_bonus = max(0, 20 - self.steps_since_last_food) / 20.0
+            reward += efficiency_bonus * 2.0
+            
+            # Snake length scaling - more reward when longer (harder to survive)
+            length_factor = len(self.snake) / 20.0
+            reward += 5.0 * length_factor
+        
+        # Penalty for taking too long to get food
+        if self.steps_since_last_food > 50:
+            reward -= 0.5
         
         # Death penalty
         if self.game_over:
@@ -369,6 +382,18 @@ class SnakeGame:
         # Pathfinding-based rewards (new feature)
         path_reward = self._calculate_path_reward()
         reward += path_reward
+        
+        # Territory control rewards
+        territory_reward = self._calculate_territory_reward()
+        reward += territory_reward
+        
+        # Strategic positioning rewards
+        strategic_reward = self._calculate_strategic_reward()
+        reward += strategic_reward
+        
+        # Adaptive difficulty rewards
+        adaptive_reward = self._calculate_adaptive_reward(food_eaten)
+        reward += adaptive_reward
         
         # Spatial awareness penalties and rewards (reduced severity)
         head = self.snake[0]
@@ -1004,6 +1029,52 @@ class SnakeGame:
         quality_score = (length_score * 0.4 + space_score * 0.4 + wall_score * 0.2)
         
         return quality_score
+
+    def _calculate_territory_reward(self) -> float:
+        """Calculate reward for maintaining control of board areas"""
+        head = self.snake[0]
+        accessible_cells = self._count_accessible_cells(head)
+        territory_ratio = accessible_cells / (self.width * self.height)
+        return territory_ratio * 0.5
+    
+    def _count_accessible_cells(self, start_pos: Tuple[int, int]) -> int:
+        """Count how many cells the snake can access from current position"""
+        visited = set()
+        queue = [start_pos]
+        visited.add(start_pos)
+        
+        while queue:
+            current = queue.pop(0)
+            for dr, dc in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                next_pos = (current[0] + dr, current[1] + dc)
+                if (next_pos[0] >= 0 and next_pos[0] < self.height and
+                    next_pos[1] >= 0 and next_pos[1] < self.width and
+                    next_pos not in self.snake and
+                    next_pos not in visited):
+                    visited.add(next_pos)
+                    queue.append(next_pos)
+        
+        return len(visited)
+    
+    def _calculate_strategic_reward(self) -> float:
+        """Calculate reward for strategic positioning"""
+        head = self.snake[0]
+        # Reward for staying near the center when possible
+        center_distance = abs(head[0] - self.height//2) + abs(head[1] - self.width//2)
+        max_center_distance = (self.width + self.height) // 2
+        center_reward = max(0, max_center_distance - center_distance) / max_center_distance
+        return center_reward * 0.1
+    
+    def _calculate_adaptive_reward(self, food_eaten: bool) -> float:
+        """Calculate adaptive rewards based on game difficulty"""
+        difficulty = len(self.snake) / 10.0  # Higher difficulty with longer snake
+        
+        if food_eaten:
+            # More reward for eating food in harder situations
+            return 5.0 * difficulty
+        else:
+            # Small survival bonus that increases with difficulty
+            return 0.05 * difficulty
 
 def main():
     game = SnakeGame()

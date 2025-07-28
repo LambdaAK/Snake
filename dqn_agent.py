@@ -298,7 +298,7 @@ def train_dqn():
     
     print_header()
     print(f"{Colors.YELLOW}Device: {agent.device}{Colors.RESET}")
-    print(f"{Colors.YELLOW}Press Ctrl+C to stop training{Colors.RESET}")
+    print(f"{Colors.YELLOW}Training indefinitely - Press Ctrl+C to stop{Colors.RESET}")
     print()
     
     try:
@@ -310,7 +310,7 @@ def train_dqn():
             total_reward = 0
             steps = 0
             
-            while steps < 10000:  # Increased max steps per episode to 10,000
+            while steps < 1500:  # Max 1500 steps per episode
                 # Choose action
                 action = agent.act(state)
                 
@@ -342,8 +342,8 @@ def train_dqn():
             episode_scores.append(info['score'])
             episode_lengths.append(steps)
             
-            # Print progress every 100 episodes
-            if episode % 100 == 0:
+            # Print progress every 10 episodes
+            if episode % 10 == 0:
                 avg_reward = np.mean(episode_rewards[-100:])
                 avg_score = np.mean(episode_scores[-100:])
                 avg_length = np.mean(episode_lengths[-100:])
