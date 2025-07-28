@@ -19,6 +19,16 @@ class Colors:
     WHITE = '\033[97m'
     BOLD = '\033[1m'
     RESET = '\033[0m'
+    
+    # Rainbow colors for snake gradient
+    RAINBOW_COLORS = [
+        '\033[91m',  # Red
+        '\033[93m',  # Yellow  
+        '\033[92m',  # Green
+        '\033[96m',  # Cyan
+        '\033[94m',  # Blue
+        '\033[95m',  # Magenta
+    ]
 
 class Direction(Enum):
     UP = (-1, 0)
@@ -448,29 +458,45 @@ class SnakeGame:
     def _render(self):
         self._clear_screen()
         
-        # Print colored header
-        print(f"{Colors.CYAN}{Colors.BOLD}{'=' * (self.width + 2)}{Colors.RESET}")
+        # Print title
+        title = "🐍 SNAKE GAME 🐍"
+        print(f"{Colors.CYAN}{Colors.BOLD}{title:^{self.width * 2 + 2}}{Colors.RESET}")
+        print()
+        
+        # Print colored header with better aspect ratio
+        print(f"{Colors.CYAN}{Colors.BOLD}{'═' * (self.width * 2 + 2)}{Colors.RESET}")
         
         for row in range(self.height):
-            print("|", end="")
+            print("║", end="")
             for col in range(self.width):
                 pos = (row, col)
                 if pos == self.snake[0]:
-                    print(f"{Colors.GREEN}O{Colors.RESET}", end="")  # Snake head in green
+                    print(f"{Colors.GREEN}██{Colors.RESET}", end="")  # Snake head in green - 2 chars wide
                 elif pos in self.snake[1:]:
-                    print(f"{Colors.YELLOW}o{Colors.RESET}", end="")  # Snake body in yellow
+                    print(f"{Colors.BLUE}▓▓{Colors.RESET}", end="")  # Snake body in blue
                 elif pos == self.food:
-                    print(f"{Colors.RED}*{Colors.RESET}", end="")  # Food in red
+                    print(f"{Colors.RED}◆◆{Colors.RESET}", end="")  # Food in red - 2 chars wide
                 else:
-                    print(" ", end="")
-            print("|")
+                    # Create a subtle grid pattern for empty spaces
+                    if (row + col) % 4 == 0:
+                        print(f"{Colors.WHITE}··{Colors.RESET}", end="")
+                    else:
+                        print("  ", end="")  # Empty space - 2 chars wide
+            print("║")
         
-        print(f"{Colors.CYAN}{Colors.BOLD}{'=' * (self.width + 2)}{Colors.RESET}")
-        print(f"{Colors.BLUE}Score: {Colors.BOLD}{self.score}{Colors.RESET}")
+        print(f"{Colors.CYAN}{Colors.BOLD}{'═' * (self.width * 2 + 2)}{Colors.RESET}")
+        print()
+        print(f"{Colors.BLUE}Score: {Colors.BOLD}{self.score}{Colors.RESET} | Length: {len(self.snake)}")
         print(f"{Colors.MAGENTA}Controls: W=Up, A=Left, S=Down, D=Right, Q=Quit{Colors.RESET}")
         
         if self.game_over:
-            print(f"\n{Colors.RED}{Colors.BOLD}GAME OVER! Press any key to exit...{Colors.RESET}")
+            print()
+            print(f"{Colors.RED}{Colors.BOLD}{'=' * 40}")
+            print("GAME OVER!")
+            print(f"{'=' * 40}{Colors.RESET}")
+            print(f"{Colors.YELLOW}Final Score: {Colors.BOLD}{self.score}{Colors.RESET}")
+            print(f"{Colors.YELLOW}Snake Length: {Colors.BOLD}{len(self.snake)}{Colors.RESET}")
+            print(f"\n{Colors.MAGENTA}Press any key to exit...{Colors.RESET}")
     
     def _get_key(self) -> str:
         try:
@@ -530,9 +556,9 @@ class SnakeGame:
     
     def play(self):
         print(f"{Colors.CYAN}{Colors.BOLD}")
-        print("=" * 50)
+        print("=" * 60)
         print("🐍 WELCOME TO SNAKE GAME! 🐍")
-        print("=" * 50)
+        print("=" * 60)
         print(f"{Colors.RESET}")
         print(f"{Colors.YELLOW}Use WASD to control the snake, Q to quit{Colors.RESET}")
         print(f"{Colors.MAGENTA}Press any key to start...{Colors.RESET}")
